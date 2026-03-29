@@ -76,6 +76,10 @@ Build a recommendation covering:
 - **Context window**: Strategy for managing tokens
 - **Prompt structure**: How to formulate the request
 - **Anti-patterns**: What NOT to do at this level
+- **Tips**: 3-5 contextual suggestions — techniques, MCPs worth exploring,
+  project-specific points d'attention. Read `references/community-tips.md`
+  and `references/mcps-catalog.md` for inspiration. Tips should be concrete
+  and specific to the user's task, not generic advice.
 
 ### Step 4 — Present with explanation
 
@@ -107,6 +111,20 @@ Output the recommendation in this format:
 ### Avoid
 - [Anti-pattern 1 for this level]
 - [Anti-pattern 2]
+
+### Tips
+Contextual suggestions drawn from community-tips.md, mcps-catalog.md, and your
+experience. Include 3-5 tips relevant to the task, such as:
+- **Techniques**: specific Claude Code techniques that help (e.g., "use /clear
+  between modules to keep context fresh", "ask Claude 'what am I missing?' before
+  approving the plan")
+- **MCPs to explore**: MCPs that could help even if not strictly required, with
+  a one-line explanation of why (e.g., "Consider Context7 MCP for up-to-date
+  Drizzle docs — the API changed recently")
+- **Points d'attention**: project-specific gotchas or things the user might not
+  have thought of (e.g., "Neon cold starts can add 500ms on mobile sync — test
+  on real 3G early", "The context window degrades at ~110K tokens — monitor if
+  working on multiple modules in one session")
 
 ### Why this approach
 [2-3 sentences explaining the reasoning, referencing the 6-level framework.
