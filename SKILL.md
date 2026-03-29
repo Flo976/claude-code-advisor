@@ -185,6 +185,14 @@ When the user says "/advisor update" or "update knowledge base":
 1. Run: `python3 ~/.claude/skills/claude-code-advisor/scripts/update-knowledge.py`
 2. Report the changes from the CHANGELOG
 
+## Language
+
+Respond in the same language the user is using. If the user writes in French,
+the entire recommendation (headings, explanations, tips) must be in French.
+If in English, respond in English. Adapt technical terms accordingly
+(e.g., "plan mode" stays "plan mode" in both languages, but explanations are
+translated).
+
 ## Principles
 
 - Be concrete and actionable, not abstract

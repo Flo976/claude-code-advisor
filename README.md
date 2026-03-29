@@ -184,6 +184,14 @@ Add it to [`references/mcps-catalog.md`](references/mcps-catalog.md).
 
 ---
 
+## Language / Langue
+
+The advisor **automatically responds in your language**. Write in French, get advice in French. Write in English, get advice in English.
+
+> **Pour les francophones** : le skill repond en francais si vous ecrivez en francais. Dites simplement "conseille-moi" ou "comment faire ca au mieux ?" et la recommandation sera entierement en francais. Le README reste en anglais pour la visibilite open-source, mais l'utilisation quotidienne est 100% francophone.
+
+---
+
 ## License
 
 [MIT](LICENSE) — use it, fork it, share it.
