@@ -142,15 +142,22 @@ For each finding, provide:
 Output as structured text. If you cannot search the web, say "NO_WEB_ACCESS" and stop."""
 
     try:
+        # Pass prompt via stdin to avoid shell escaping issues with long prompts
         result = subprocess.run(
-            ["claude", "-p", research_prompt, "--output-format", "text"],
+            ["claude", "-p", "--output-format", "text"],
+            input=research_prompt,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=180,
         )
         raw_research = result.stdout.strip() if result.returncode == 0 else ""
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        print(f"  -> WARNING: claude -p failed ({e}). Skipping web research.")
+        if result.returncode != 0 and result.stderr:
+            print(f"  -> claude -p stderr: {result.stderr[:200]}")
+    except subprocess.TimeoutExpired:
+        print("  -> WARNING: claude -p timed out (180s). Skipping web research.")
+        raw_research = ""
+    except FileNotFoundError:
+        print("  -> WARNING: claude command not found. Is Claude Code installed?")
         raw_research = ""
 
     # Detect if web search is unavailable
@@ -220,15 +227,22 @@ IMPORTANT:
 - Do NOT invent information — only use what the research provides"""
 
     try:
+        # Pass prompt via stdin to avoid shell escaping issues
         result = subprocess.run(
-            ["claude", "-p", update_prompt, "--output-format", "text"],
+            ["claude", "-p", "-", "--output-format", "text"],
+            input=update_prompt,
             capture_output=True,
             text=True,
             timeout=300,
         )
         response = result.stdout.strip() if result.returncode == 0 else ""
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        print(f"  -> WARNING: claude -p failed ({e}). No updates applied.")
+        if result.returncode != 0 and result.stderr:
+            print(f"  -> claude -p stderr: {result.stderr[:200]}")
+    except subprocess.TimeoutExpired:
+        print("  -> WARNING: claude -p timed out (300s). No updates applied.")
+        return {"updated": [], "unchanged": list(current_files.keys())}
+    except FileNotFoundError:
+        print("  -> WARNING: claude command not found. No updates applied.")
         return {"updated": [], "unchanged": list(current_files.keys())}
 
     if not response:
