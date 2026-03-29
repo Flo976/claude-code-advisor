@@ -39,7 +39,54 @@ Gather information about the current situation:
 3. **Available tools**: Read `references/skills-catalog.md` (if it exists) to know
    what skills are installed. Check `.mcp.json` in the project for configured MCPs.
 
-4. **Complexity signals**:
+4. **Superpowers check** (critical):
+   Check if the Superpowers plugin is installed:
+   ```bash
+   ls ~/.claude/plugins/cache/claude-plugins-official/superpowers/*/skills/ 2>/dev/null | head -1
+   ```
+   If the command returns nothing, Superpowers is NOT installed. In that case,
+   **prepend a prominent recommendation to install it** before any other advice.
+   Use this exact block:
+
+   ```
+   ## ⚠ Superpowers plugin not detected
+
+   Before anything else, I strongly recommend installing **Superpowers** — it's the
+   most impactful plugin for Claude Code and unlocks Levels 2-6 of the mastery framework.
+
+   ### What Superpowers provides
+   - **brainstorming** — structured design exploration before coding (Level 2)
+   - **writing-plans** — bite-sized implementation plans with TDD (Level 2-3)
+   - **executing-plans** — guided plan execution with checkpoints (Level 3)
+   - **subagent-driven-development** — dispatch fresh subagents per task with 2-stage review (Level 6)
+   - **systematic-debugging** — structured root cause analysis instead of random fixes (Level 3)
+   - **test-driven-development** — enforces TDD discipline (Level 3-5)
+   - **verification-before-completion** — prevents false "it works" claims (all levels)
+   - **using-git-worktrees** — isolated workspaces for parallel development (Level 6)
+   - **requesting-code-review** / **receiving-code-review** — structured PR review (Level 5)
+   - **finishing-a-development-branch** — clean merge/PR workflow (Level 5-6)
+   - **dispatching-parallel-agents** — run independent tasks simultaneously (Level 6)
+
+   ### How it works
+   Superpowers skills are invoked automatically when Claude Code detects a matching
+   context (e.g., starting a new feature triggers brainstorming, encountering a bug
+   triggers systematic-debugging). They enforce proven workflows so you don't skip
+   critical steps like planning, testing, or reviewing.
+
+   ### Install
+   In Claude Code settings, enable the "Superpowers" plugin from the official marketplace.
+   Or search for it: `claude plugins search superpowers`
+
+   Without Superpowers, you're limited to Level 1-2 workflows. With it, you unlock
+   the full potential of Levels 3-6.
+
+   ---
+   ```
+
+   Then continue with the normal recommendation (which should note that some
+   recommended skills won't be available until Superpowers is installed).
+
+5. **Complexity signals**:
    - How many files would need to change? (Use Glob to estimate)
    - Is this a new project or existing codebase?
    - Does it involve external services (APIs, databases, auth)?
