@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+# Prerequisites
+command -v git >/dev/null 2>&1 || { echo "  Error: git is required but not installed."; exit 1; }
+command -v python3 >/dev/null 2>&1 || { echo "  Error: python3 is required but not installed."; exit 1; }
+
+# Ensure skills directory exists
+mkdir -p "$HOME/.claude/skills"
+
 INSTALL_DIR="$HOME/.claude/skills/claude-code-advisor"
 
 echo ""

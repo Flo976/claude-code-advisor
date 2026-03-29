@@ -8,8 +8,8 @@ Token management is one of the highest-leverage skills in Claude Code. This file
 
 | Model | Max Tokens | Degradation Starts | Effective Range |
 |-------|-----------|-------------------|-----------------|
-| Claude Opus 4.6 | 1M tokens | ~110K tokens | 0–110K |
-| Claude Sonnet 4.6 | 200K tokens | ~110K tokens | 0–110K |
+| Claude Opus 4.6 | 1M tokens | ~110K tokens (as of March 2026) | 0–110K |
+| Claude Sonnet 4.6 | 200K tokens | ~110K tokens (as of March 2026) | 0–110K |
 | Claude Haiku 4.5 | 200K tokens | ~80K tokens | 0–80K |
 
 **Key insight:** The 200K window does not mean 200K tokens of consistent quality. After ~110K tokens, Claude's ability to track earlier context, follow conventions, and maintain coherence degrades measurably — even though the window still has capacity.

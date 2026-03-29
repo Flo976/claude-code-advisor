@@ -70,7 +70,7 @@ Most people stay at Level 1 or 2 and wonder why results are inconsistent. Levels
 - Uses `/clear` or subagents to reset context when needed
 - Uses `Glob` and `Grep` with specific patterns instead of reading entire files
 
-**Key insight:** Context window quality degrades at ~110K tokens even though the window is 200K. More context is not always better — irrelevant context crowds out relevant context.
+**Key insight:** Context window quality degrades at ~110K tokens (as of March 2026) even though the window is 200K. More context is not always better — irrelevant context crowds out relevant context.
 
 **CLAUDE.md best practices:**
 - Keep under 200 lines

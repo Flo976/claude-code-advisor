@@ -42,7 +42,7 @@ Gather information about the current situation:
 4. **Superpowers check** (critical):
    Check if the Superpowers plugin is installed:
    ```bash
-   ls ~/.claude/plugins/cache/claude-plugins-official/superpowers/*/skills/ 2>/dev/null | head -1
+   ls ~/.claude/plugins/*/superpowers/*/skills/brainstorming/SKILL.md 2>/dev/null || ls ~/.claude/plugins/cache/*/superpowers/*/skills/brainstorming/SKILL.md 2>/dev/null
    ```
    If the command returns nothing, Superpowers is NOT installed. In that case,
    **prepend a prominent recommendation to install it** before any other advice.

@@ -76,6 +76,11 @@ Advisor:
   - Don't try to refactor all 15 files in one session (context overflow)
   - Don't micro-manage subagents — give them clear specs and let them work
 
+  ### Tips
+  - Use `/clear` between each file group to keep context fresh
+  - Consider `Context7` MCP for up-to-date Next.js 16 auth middleware docs
+  - Test the refactored auth on a staging branch before merging — auth bugs are hard to rollback
+
   ### Why this approach
   15 files is too many for a single context window. Level 6 (Manager) lets you
   coordinate parallel subagents, each handling 3-5 related files. The brainstorming
@@ -188,7 +193,7 @@ Add it to [`references/mcps-catalog.md`](references/mcps-catalog.md).
 
 The advisor **automatically responds in your language**. Write in French, get advice in French. Write in English, get advice in English.
 
-> **Pour les francophones** : le skill repond en francais si vous ecrivez en francais. Dites simplement "conseille-moi" ou "comment faire ca au mieux ?" et la recommandation sera entierement en francais. Le README reste en anglais pour la visibilite open-source, mais l'utilisation quotidienne est 100% francophone.
+> **Pour les francophones** : le skill répond en français si vous écrivez en français. Dites simplement "conseille-moi" ou "comment faire ça au mieux ?" et la recommandation sera entièrement en français. Le README reste en anglais pour la visibilite open-source, mais l'utilisation quotidienne est 100% francophone.
 
 ---
 

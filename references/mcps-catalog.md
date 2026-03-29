@@ -191,4 +191,4 @@ Configuring MCPs globally and forgetting they're active in every session. Each a
 
 ## Configuration Notes
 
-MCPs are configured in `~/.claude/settings.json` (global) or `.claude/settings.json` (project-local). Project-local settings override globals for that project. Prefer project-local configuration to keep MCP scope narrow.
+MCPs are configured in `~/.claude/.mcp.json` (global) or `.mcp.json` in the project root (project-local). Project-local settings override globals for that project. Prefer project-local configuration to keep MCP scope narrow.

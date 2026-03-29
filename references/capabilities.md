@@ -65,8 +65,8 @@ Claude Code automatically summarizes conversation history when the context windo
 ### Context Window
 | Model | Max Tokens | Practical Degradation Point |
 |-------|-----------|----------------------------|
-| Claude Opus 4.6 | 1M tokens | ~110K tokens |
-| Claude Sonnet 4.6 | 200K tokens | ~110K tokens |
+| Claude Opus 4.6 | 1M tokens | ~110K tokens (as of March 2026) |
+| Claude Sonnet 4.6 | 200K tokens | ~110K tokens (as of March 2026) |
 | Claude Haiku 4.5 | 200K tokens | ~80K tokens |
 
 At ~110K tokens, response quality degrades noticeably even though the window has capacity. See `context-window.md` for management strategies.
