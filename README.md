@@ -93,15 +93,28 @@ Advisor:
 
 ### One-liner install
 
+**macOS / Linux:**
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/Flo976/claude-code-advisor/main/install.sh)
 ```
 
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/Flo976/claude-code-advisor/main/install.ps1 | iex
+```
+
 ### Or clone manually
 
+**macOS / Linux:**
 ```bash
 git clone https://github.com/Flo976/claude-code-advisor.git ~/.claude/skills/claude-code-advisor
 cd ~/.claude/skills/claude-code-advisor && python3 scripts/update-knowledge.py --local-only
+```
+
+**Windows:**
+```powershell
+git clone https://github.com/Flo976/claude-code-advisor.git $env:USERPROFILE\.claude\skills\claude-code-advisor
+cd $env:USERPROFILE\.claude\skills\claude-code-advisor; python scripts/update-knowledge.py --local-only
 ```
 
 ### Use it
