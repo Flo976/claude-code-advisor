@@ -1,0 +1,6 @@
+references/skills-catalog.md
+__pycache__/
+*.pyc
+.venv/
+scripts/raw_*.md
+.DS_Store
