@@ -125,6 +125,8 @@ In Claude Code:
 /advisor
 ```
 
+> **Note:** The slash command is `/advisor` (not `/claude-code-advisor`). The `name` field in SKILL.md determines the command name.
+
 Or just ask naturally:
 
 - *"How should I approach this?"*

@@ -1,5 +1,5 @@
 ---
-name: claude-code-advisor
+name: advisor
 description: |
   Expert advisor that recommends the optimal Claude Code strategy for any task.
   Analyzes context, diagnoses the appropriate mastery level (1-6), and provides
