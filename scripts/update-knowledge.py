@@ -144,7 +144,7 @@ Output as structured text. If you cannot search the web, say "NO_WEB_ACCESS" and
     try:
         # Pass prompt via stdin to avoid shell escaping issues with long prompts
         result = subprocess.run(
-            ["claude", "-p", "--output-format", "text"],
+            ["claude", "-p", "--output-format", "text", "--allowedTools", "WebSearch"],
             input=research_prompt,
             capture_output=True,
             text=True,
@@ -229,7 +229,7 @@ IMPORTANT:
     try:
         # Pass prompt via stdin to avoid shell escaping issues
         result = subprocess.run(
-            ["claude", "-p", "-", "--output-format", "text"],
+            ["claude", "-p", "--output-format", "text"],
             input=update_prompt,
             capture_output=True,
             text=True,
