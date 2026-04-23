@@ -15,6 +15,8 @@ allowed-tools:
   - Glob
   - Grep
   - Bash
+  - Write
+  - Agent
 ---
 
 # Claude Code Advisor
@@ -28,7 +30,14 @@ Follow these 4 steps every time:
 
 ### Step 1 — Analyze context
 
-Gather information about the current situation:
+**First, refresh the local skills catalog (fast, no network):**
+```bash
+python3 ~/.claude/skills/claude-code-advisor/scripts/update-knowledge.py --quiet
+```
+This regenerates `references/skills-catalog.md` from `~/.claude/skills/`, MCP configs,
+and `~/.claude/plugins/` so subsequent steps see the current setup.
+
+Then gather information about the current situation:
 
 1. **The task**: What has the user asked to do? Read the recent conversation context.
 
@@ -181,9 +190,119 @@ why the recommended level is the right fit.]
 
 ## Handling "/advisor update"
 
-When the user says "/advisor update" or "update knowledge base":
-1. Run: `python3 ~/.claude/skills/claude-code-advisor/scripts/update-knowledge.py`
-2. Report the changes from the CHANGELOG
+When the user says "/advisor update" or "update knowledge base", orchestrate a
+parallel update via subagents (each with its own context window and tool budget,
+isolated from each other's failures).
+
+### 1. Refresh local catalog
+
+```bash
+python3 ~/.claude/skills/claude-code-advisor/scripts/update-knowledge.py
+```
+
+### 2. Dispatch the web-research subagent
+
+Send a single `Agent` call with `subagent_type: general-purpose`. The agent must
+load WebSearch/WebFetch via `ToolSearch` (they are deferred tools) before using
+them. Example prompt:
+
+```
+You are researching recent Claude Code updates and community practices for the
+week of {TODAY}. Focus on the last ~30 days.
+
+Step 1 — Load tool schemas:
+  Call ToolSearch with query "select:WebSearch,WebFetch"
+
+Step 2 — Search for:
+  1. Recent Claude Code changelog/releases from github.com/anthropics/claude-code
+  2. New features or breaking changes
+  3. Community blog posts and GitHub discussions with non-obvious tips
+  4. New or notable MCP servers
+  5. Changes to context window limits or model capabilities
+
+Step 3 — Return a structured markdown report. For each finding:
+  - Source URL
+  - Date (if available)
+  - Summary (2-3 sentences)
+  - Target reference file: one of capabilities.md, mcps-catalog.md,
+    community-tips.md, context-window.md, anti-patterns.md
+
+Cap at ~30 findings, prioritize the most impactful and recent. If web access
+fails, return the single line "NO_WEB_ACCESS" and stop.
+```
+
+Wait for the result. If it returns `NO_WEB_ACCESS` or is empty, skip step 3 and
+tell the user web research was unavailable — the local catalog was still refreshed.
+
+### 3. Dispatch per-file update subagents in parallel
+
+Send ONE message with 6 parallel `Agent` calls (one per reference file below).
+Each agent works independently — if one fails, the others still land.
+
+Files to update (skip `skills-catalog.md` — auto-generated, and
+`modes-and-patterns.md` — the core framework, rarely changes unless research
+explicitly touches it):
+- `capabilities.md`
+- `mcps-catalog.md`
+- `community-tips.md`
+- `context-window.md`
+- `anti-patterns.md`
+- `modes-and-patterns.md` (only if research mentions level/mode changes)
+
+Prompt template for each per-file agent:
+
+```
+You are updating one reference file in the Claude Code Advisor knowledge base.
+
+Target file (absolute path):
+  ~/.claude/skills/claude-code-advisor/references/{FILENAME}
+
+Recent research (curated by the research agent):
+<research>
+{RESEARCH_REPORT}
+</research>
+
+Task:
+1. Read the target file
+2. Determine if the research contains findings that fall within this file's
+   scope and are genuinely new (not already covered)
+3. If yes, Write the file with the updated complete content — preserve existing
+   accurate content, integrate new findings in the appropriate section, update
+   dates where relevant
+4. If no, do not modify the file
+
+Be conservative. Only add what the research clearly supports. Do NOT invent
+information or speculate.
+
+Report back with exactly one line:
+  UPDATED: {FILENAME} — {1-sentence summary of what changed}
+or
+  UNCHANGED: {FILENAME} — {1-sentence reason}
+```
+
+### 4. Write the CHANGELOG entry
+
+After all subagents report back, append a dated section to `CHANGELOG.md`:
+
+```markdown
+## {YYYY-MM-DD} — Weekly update
+
+### Setup local
+- {N} skills, {M} MCPs, {P} plugins detected
+
+### Updated files
+- {list of UPDATED files with summaries}
+
+### Unchanged
+- {list of UNCHANGED files}
+```
+
+Insert the new section right after the `# Changelog` header (most recent first).
+
+### 5. Report to the user
+
+Summarize: which files were updated, which were left alone, and whether web
+research succeeded. Keep it tight — 5-10 lines max.
 
 ## Language
 

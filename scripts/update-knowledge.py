@@ -1,55 +1,45 @@
 #!/usr/bin/env python3
 """
-Claude Code Advisor — Knowledge Base Update Script
+Claude Code Advisor — Local setup scanner.
 
-Orchestrates the weekly update of the advisor's knowledge base:
-1. Scans local setup (skills, MCPs, plugins) — Python
-2. Collects raw sources (docs, changelog, community) — Python + claude -p
-3. Analyzes and updates reference files — claude -p (outputs complete files)
-4. Writes updated files and CHANGELOG — Python
+Refreshes `references/skills-catalog.md` by scanning ~/.claude/skills,
+~/.claude/plugins, and MCP config files. Fast, no network, no LLM.
+
+Full knowledge base updates (web research + reference file rewrites) are
+handled by the `/advisor update` flow in SKILL.md, which dispatches
+subagents in parallel.
 """
 
-import subprocess
-import sys
 import json
-import re
+import sys
 from pathlib import Path
 from datetime import datetime
 
 ADVISOR_DIR = Path(__file__).parent.parent
 REFERENCES_DIR = ADVISOR_DIR / "references"
-SCRIPTS_DIR = Path(__file__).parent
-CHANGELOG_FILE = ADVISOR_DIR / "CHANGELOG.md"
 
 CLAUDE_SKILLS_DIR = Path.home() / ".claude" / "skills"
 CLAUDE_PLUGINS_DIR = Path.home() / ".claude" / "plugins"
 
 
 def scan_local_setup():
-    """Step 1: Scan local Claude Code setup (pure Python, no LLM needed)."""
-    print("[1/4] Scanning local setup...")
-
     skills = []
     if CLAUDE_SKILLS_DIR.exists():
         for skill_dir in sorted(CLAUDE_SKILLS_DIR.iterdir()):
             skill_md = skill_dir / "SKILL.md"
             if skill_md.exists():
                 content = skill_md.read_text(encoding="utf-8")
-                name = skill_dir.name
-                desc = _extract_yaml_description(content)
-                skills.append({"name": name, "description": desc[:200]})
+                skills.append({
+                    "name": skill_dir.name,
+                    "description": _extract_yaml_description(content)[:200],
+                })
 
     mcps = []
-    mcp_files = [
-        Path.home() / ".claude" / ".mcp.json",
-        Path.cwd() / ".mcp.json",
-    ]
-    for mcp_file in mcp_files:
+    for mcp_file in [Path.home() / ".claude" / ".mcp.json", Path.cwd() / ".mcp.json"]:
         if mcp_file.exists():
             try:
                 data = json.loads(mcp_file.read_text())
-                for mcp_name in data.get("mcpServers", {}):
-                    mcps.append(mcp_name)
+                mcps.extend(data.get("mcpServers", {}).keys())
             except (json.JSONDecodeError, KeyError):
                 pass
 
@@ -80,12 +70,10 @@ def scan_local_setup():
         lines.append(f"- `{p}`\n")
 
     catalog_path.write_text("".join(lines), encoding="utf-8")
-    print(f"  -> skills-catalog.md: {len(skills)} skills, {len(mcps)} MCPs, {len(plugins)} plugins")
     return {"skills": len(skills), "mcps": len(mcps), "plugins": len(plugins)}
 
 
 def _extract_yaml_description(content: str) -> str:
-    """Extract description from SKILL.md YAML frontmatter, handling multi-line formats."""
     lines = content.split("\n")
     in_frontmatter = False
     in_description = False
@@ -94,7 +82,7 @@ def _extract_yaml_description(content: str) -> str:
     for line in lines:
         if line.strip() == "---":
             if in_frontmatter:
-                break  # End of frontmatter
+                break
             in_frontmatter = True
             continue
 
@@ -103,15 +91,12 @@ def _extract_yaml_description(content: str) -> str:
 
         if line.strip().startswith("description:"):
             value = line.split("description:", 1)[1].strip()
-            # Handle inline description: description: "some text"
             if value and value not in ("|", ">", ">-", "|-"):
                 return value.strip("\"'")
-            # Multi-line description starts on next line
             in_description = True
             continue
 
         if in_description:
-            # Stop at next YAML key (non-indented line with colon)
             if line and not line[0].isspace() and ":" in line:
                 break
             if line.strip():
@@ -120,234 +105,14 @@ def _extract_yaml_description(content: str) -> str:
     return " ".join(desc_lines)
 
 
-def collect_sources():
-    """Step 2: Collect raw sources for the LLM to analyze."""
-    print("[2/4] Collecting sources via claude -p...")
-
-    research_prompt = """Search the web for the latest Claude Code updates and community best practices from the last month.
-
-Focus on:
-1. Recent Claude Code changelog/releases from github.com/anthropics/claude-code
-2. New features or breaking changes
-3. Community tips and best practices (blogs, GitHub discussions)
-4. New or notable MCP servers
-5. Changes to context window limits or model capabilities
-
-For each finding, provide:
-- Source URL
-- Date (if available)
-- Summary (2-3 sentences)
-- Which reference file it should update (capabilities.md, mcps-catalog.md, community-tips.md, context-window.md, anti-patterns.md)
-
-Output as structured text. If you cannot search the web, say "NO_WEB_ACCESS" and stop."""
-
-    try:
-        # Pass prompt via stdin to avoid shell escaping issues with long prompts
-        result = subprocess.run(
-            ["claude", "-p", "--output-format", "text", "--allowedTools", "WebSearch"],
-            input=research_prompt,
-            capture_output=True,
-            text=True,
-            timeout=180,
-        )
-        raw_research = result.stdout.strip() if result.returncode == 0 else ""
-        if result.returncode != 0 and result.stderr:
-            print(f"  -> claude -p stderr: {result.stderr[:200]}")
-    except subprocess.TimeoutExpired:
-        print("  -> WARNING: claude -p timed out (180s). Skipping web research.")
-        raw_research = ""
-    except FileNotFoundError:
-        print("  -> WARNING: claude command not found. Is Claude Code installed?")
-        raw_research = ""
-
-    # Detect if web search is unavailable
-    if (
-        not raw_research
-        or len(raw_research) < 100
-        or "NO_WEB_ACCESS" in raw_research
-        or "I don't have access to web search" in raw_research
-    ):
-        print("  -> WARNING: Web research unavailable or returned insufficient data.")
-        print("  -> The knowledge base update will only refresh the local skills catalog.")
-        print("  -> To enable web research, ensure claude -p has web search access.")
-        raw_research = ""
-
-    if raw_research:
-        raw_path = SCRIPTS_DIR / "raw_research.md"
-        raw_path.write_text(raw_research, encoding="utf-8")
-        print(f"  -> raw_research.md: {len(raw_research)} chars")
-
-    return raw_research
-
-
-def analyze_and_update(raw_research: str):
-    """Step 3: Use claude -p to analyze sources and produce updated reference files."""
-    print("[3/4] Analyzing and updating references via claude -p...")
-
-    # Read current reference files (exclude auto-generated skills-catalog.md)
-    current_files = {}
-    for ref_file in sorted(REFERENCES_DIR.glob("*.md")):
-        if ref_file.name != "skills-catalog.md":
-            current_files[ref_file.name] = ref_file.read_text(encoding="utf-8")
-
-    files_block = "\n".join(
-        f"<current-file name=\"{name}\">\n{content}\n</current-file>"
-        for name, content in current_files.items()
-    )
-
-    update_prompt = f"""You are updating the knowledge base of the Claude Code Advisor skill.
-
-Here is recent research about Claude Code updates and community practices:
-
-<research>
-{raw_research[:20000]}
-</research>
-
-Here are the current reference files:
-
-{files_block}
-
-Your job: for each file, determine if the research contains genuinely new information that should be added or updated. Be conservative — only change what the research clearly supports.
-
-Output your response as a series of XML blocks. For each file that needs changes, output the COMPLETE updated file content:
-
-<updated-file name="filename.md">
-...complete file content with changes integrated...
-</updated-file>
-
-For files that don't need changes:
-
-<unchanged-file name="filename.md"/>
-
-IMPORTANT:
-- Output the COMPLETE file content for updated files, not just the diff
-- Preserve existing content that is still accurate
-- Add new information in the appropriate section
-- Update dates where relevant
-- Do NOT invent information — only use what the research provides"""
-
-    try:
-        # Pass prompt via stdin to avoid shell escaping issues
-        result = subprocess.run(
-            ["claude", "-p", "--output-format", "text"],
-            input=update_prompt,
-            capture_output=True,
-            text=True,
-            timeout=300,
-        )
-        response = result.stdout.strip() if result.returncode == 0 else ""
-        if result.returncode != 0 and result.stderr:
-            print(f"  -> claude -p stderr: {result.stderr[:200]}")
-    except subprocess.TimeoutExpired:
-        print("  -> WARNING: claude -p timed out (300s). No updates applied.")
-        return {"updated": [], "unchanged": list(current_files.keys())}
-    except FileNotFoundError:
-        print("  -> WARNING: claude command not found. No updates applied.")
-        return {"updated": [], "unchanged": list(current_files.keys())}
-
-    if not response:
-        print("  -> WARNING: Empty response from claude -p. No updates applied.")
-        return {"updated": [], "unchanged": list(current_files.keys())}
-
-    # Parse XML-tagged responses
-    updated = []
-    unchanged = []
-
-    # Extract updated files
-    for match in re.finditer(
-        r'<updated-file name="([^"]+)">\s*\n(.*?)\n\s*</updated-file>',
-        response,
-        re.DOTALL,
-    ):
-        filename = match.group(1)
-        new_content = match.group(2).strip()
-        if filename in current_files and new_content:
-            filepath = REFERENCES_DIR / filename
-            filepath.write_text(new_content + "\n", encoding="utf-8")
-            updated.append(filename)
-            print(f"  -> UPDATED: {filename}")
-
-    # Extract unchanged files
-    for match in re.finditer(r'<unchanged-file name="([^"]+)"\s*/>', response):
-        filename = match.group(1)
-        if filename in current_files:
-            unchanged.append(filename)
-
-    # Files not mentioned in either category
-    for filename in current_files:
-        if filename not in updated and filename not in unchanged:
-            unchanged.append(filename)
-            print(f"  -> NOT MENTIONED (kept as-is): {filename}")
-
-    print(f"  -> {len(updated)} files updated, {len(unchanged)} unchanged")
-    return {"updated": updated, "unchanged": unchanged}
-
-
-def write_changelog(local_stats: dict, update_result: dict):
-    """Step 4: Write CHANGELOG entry."""
-    print("[4/4] Writing CHANGELOG...")
-
-    date = datetime.now().strftime("%Y-%m-%d")
-    is_full_update = bool(update_result.get("updated"))
-    entry_lines = [f"\n## {date} — {'Weekly' if is_full_update else 'Local'} update\n\n"]
-
-    entry_lines.append("### Setup local\n")
-    entry_lines.append(
-        f"- {local_stats['skills']} skills, {local_stats['mcps']} MCPs, "
-        f"{local_stats['plugins']} plugins detected\n\n"
-    )
-
-    updated = update_result.get("updated", [])
-    unchanged = update_result.get("unchanged", [])
-
-    if updated:
-        entry_lines.append("### Updated files\n")
-        for f in sorted(updated):
-            entry_lines.append(f"- {f}\n")
-        entry_lines.append("\n")
-
-    if unchanged:
-        entry_lines.append("### Unchanged\n")
-        for f in sorted(unchanged):
-            entry_lines.append(f"- {f}\n")
-        entry_lines.append("\n")
-
-    if not updated and not unchanged:
-        entry_lines.append("### Knowledge base\n- Local-only update (no web research)\n\n")
-
-    entry = "".join(entry_lines)
-
-    if CHANGELOG_FILE.exists():
-        existing = CHANGELOG_FILE.read_text(encoding="utf-8")
-        header_end = existing.find("\n## ")
-        if header_end == -1:
-            new_content = existing + entry
-        else:
-            new_content = existing[:header_end] + entry + existing[header_end:]
-    else:
-        new_content = "# Changelog\n" + entry
-
-    CHANGELOG_FILE.write_text(new_content, encoding="utf-8")
-    print("  -> CHANGELOG.md updated")
-    print(f"\n=== Update complete ===")
-    print(entry)
-
-
 def main():
-    local_only = "--local-only" in sys.argv
-
-    local_stats = scan_local_setup()
-
-    if local_only:
-        update_result = {"updated": [], "unchanged": []}
-    else:
-        raw_research = collect_sources()
-        if raw_research:
-            update_result = analyze_and_update(raw_research)
-        else:
-            update_result = {"updated": [], "unchanged": []}
-
-    write_changelog(local_stats, update_result)
+    quiet = "--quiet" in sys.argv
+    stats = scan_local_setup()
+    if not quiet:
+        print(
+            f"skills-catalog.md refreshed: "
+            f"{stats['skills']} skills, {stats['mcps']} MCPs, {stats['plugins']} plugins"
+        )
 
 
 if __name__ == "__main__":

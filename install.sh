@@ -25,7 +25,7 @@ else
 fi
 
 echo "  Generating local skills catalog..."
-python3 scripts/update-knowledge.py --local-only
+python3 scripts/update-knowledge.py
 
 echo ""
 echo "  === Claude Code Advisor installed ==="

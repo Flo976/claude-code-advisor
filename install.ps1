@@ -35,7 +35,7 @@ if (Test-Path $InstallDir) {
 
 Write-Host "  Generating local skills catalog..."
 $PythonCmd = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" } else { "python" }
-& $PythonCmd scripts/update-knowledge.py --local-only
+& $PythonCmd scripts/update-knowledge.py
 
 Write-Host ""
 Write-Host "  === Claude Code Advisor installed ===" -ForegroundColor Green

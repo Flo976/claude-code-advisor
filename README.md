@@ -108,13 +108,13 @@ irm https://raw.githubusercontent.com/Flo976/claude-code-advisor/main/install.ps
 **macOS / Linux:**
 ```bash
 git clone https://github.com/Flo976/claude-code-advisor.git ~/.claude/skills/claude-code-advisor
-cd ~/.claude/skills/claude-code-advisor && python3 scripts/update-knowledge.py --local-only
+cd ~/.claude/skills/claude-code-advisor && python3 scripts/update-knowledge.py
 ```
 
 **Windows:**
 ```powershell
 git clone https://github.com/Flo976/claude-code-advisor.git $env:USERPROFILE\.claude\skills\claude-code-advisor
-cd $env:USERPROFILE\.claude\skills\claude-code-advisor; python scripts/update-knowledge.py --local-only
+cd $env:USERPROFILE\.claude\skills\claude-code-advisor; python scripts/update-knowledge.py
 ```
 
 ### Use it
@@ -154,17 +154,23 @@ The advisor draws from **7 constantly-updated reference files**:
 
 ## Auto-Update
 
-The knowledge base **updates itself every week**:
+The knowledge base has two update paths:
 
-1. **Scans your local setup** — detects installed skills, MCPs, plugins
-2. **Researches the web** — Claude Code releases, community tips, new MCPs
-3. **Analyzes intelligently** — uses `claude -p` to merge new information
-4. **Logs everything** — changes tracked in [`CHANGELOG.md`](CHANGELOG.md)
+**Local scan** — instant, no network, no LLM. Refreshes `skills-catalog.md` from
+your installed skills, MCPs, and plugins. Runs automatically at the start of
+every `/advisor` invocation.
+
+**Full update** (`/advisor update`) — dispatches parallel subagents:
+1. One research subagent searches the web (Claude Code releases, community tips,
+   new MCPs) — loads `WebSearch`/`WebFetch` via `ToolSearch`
+2. Six per-file subagents analyze the research and rewrite their target
+   reference file independently — isolated failures, parallel execution
+3. Results are consolidated into [`CHANGELOG.md`](CHANGELOG.md)
 
 ### Setup weekly auto-update
 
 ```
-/schedule create --name "advisor-update" --cron "0 9 * * 1" --prompt "cd ~/.claude/skills/claude-code-advisor && python3 scripts/update-knowledge.py"
+/schedule create --name "advisor-update" --cron "0 9 * * 1" --prompt "/advisor update"
 ```
 
 ### Manual update anytime
