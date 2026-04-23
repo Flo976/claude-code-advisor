@@ -2,7 +2,7 @@
 
 Best practices collected from the Claude Code community, organized by category. This file is updated weekly via automated script.
 
-> Last updated: 2026-03-29 (initial seed — dates will vary as tips are added)
+> Last updated: 2026-04-23 (added Opus 4.7 prompting, document-and-clear, checkpoint/rollback, master-clone subagents, less-permission-prompts tips)
 
 ---
 
@@ -19,6 +19,8 @@ Best practices collected from the Claude Code community, organized by category. 
 **Separate your constraints from your goal.** "I need to add pagination. Constraints: no new dependencies, must work with the existing `useFetch` hook, TypeScript strict mode." Structured prompts produce more targeted output than prose.
 
 **Ask for the trade-offs before asking for the solution.** "What are the trade-offs between approach A and approach B for this feature?" often produces better information than "implement this feature." Use plan mode for this.
+
+**Opus 4.7 punishes vague prompts — state tone, structure, audience, and constraints.** The model "does exactly what you tell it." Hints are no longer enough; rewrite go-to prompts and Skill files to explicitly name the desired tone, output structure, target audience, and hard constraints. Opus 4.7 also reasons more and calls tools less, so explicitly request parallel subagents (e.g., "spawn 3 parallel Task() agents to explore X, Y, Z") when you want concurrency. Source: https://www.productcompass.pm/p/claude-opus-4-7-guide (April 2026).
 
 ---
 
@@ -54,6 +56,8 @@ Best practices collected from the Claude Code community, organized by category. 
 
 **Spec first, implement second.** Write the function signature and docstring before asking Claude to implement. "Implement this function: [signature + docstring]" produces better output than "write a function that does X."
 
+**Checkpoint before autonomous work, rollback instead of fix-forward.** Reddit community consensus: always commit (or rely on `/rewind`, aliased to `/undo` since v2.1.108) before letting Claude run autonomously. If the result is wrong, rollback and restart with a sharper prompt rather than trying to correct a degraded session. Starting fresh has a higher success rate than wrestling corrections. Source: https://www.morphllm.com/claude-code-reddit (April 2026).
+
 ---
 
 ## Context Window Management Tips
@@ -68,6 +72,14 @@ Best practices collected from the Claude Code community, organized by category. 
 
 **CLAUDE.md is loaded context, not free.** Every line in CLAUDE.md is present in every session. Don't add things to CLAUDE.md that would only matter in 1-in-20 sessions. Those belong in separate files that Claude reads on demand.
 
+**"Document & Clear" beats automatic compaction.** Auto-compaction is opaque and error-prone. Instead, have Claude dump progress, decisions, and open questions to a markdown file (e.g., `.claude/session-notes.md`), then `/clear`, then restart the next session by reading that summary. Reserve `/compact` for cases where the recent context is still genuinely needed. Source: https://blog.sshh.io/p/how-i-use-every-claude-code-feature (2026).
+
+---
+
+## Subagent Patterns
+
+**Prefer master-clones over specialist subagents.** Custom subagents gatekeep information and force rigid workflows, losing holistic reasoning. Instead, let the primary agent spawn parallel copies of itself via `Task()` — this preserves the full context model and reasoning style. Reserve specialist subagents for cases where you genuinely need isolated context (e.g., worktree isolation, available via v2.1.83+). Source: https://blog.sshh.io/p/how-i-use-every-claude-code-feature (2026).
+
 ---
 
 ## Team Patterns
@@ -81,6 +93,12 @@ Best practices collected from the Claude Code community, organized by category. 
 **Code review skill with team standards.** Build a code review skill that encodes your team's actual standards: security checks relevant to your domain, performance patterns you care about, anti-patterns specific to your codebase. Generic code review is less useful than opinionated code review.
 
 **Conventions log.** Keep a `decisions/` folder with short ADR (Architecture Decision Record) files. Reference them from CLAUDE.md. Claude can read ADRs on demand when working on related areas, without loading them into every session.
+
+---
+
+## Permissions & Allowlist Tuning
+
+**Use `/less-permission-prompts` to auto-generate an allowlist.** The built-in skill (shipped in v2.1.111, 2026-04-16) scans your recent transcripts for common read-only Bash and MCP tool calls, then proposes a prioritized allowlist for `.claude/settings.json`. Run it periodically to cut down on permission prompt noise without hand-curating. Since v2.1.113, `cd <current-directory> && git …` no longer triggers a permission prompt, and `sandbox.network.deniedDomains` lets you block specific domains instead of allowlisting every host. Source: https://code.claude.com/docs/en/changelog (v2.1.111 / v2.1.113, April 2026).
 
 ---
 

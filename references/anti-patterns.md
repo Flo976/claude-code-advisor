@@ -53,6 +53,33 @@ Build me a full-stack app with user auth, a dashboard, API integration with Stri
 
 ---
 
+### 1.5 Negative-Only Constraints Without a Working Alternative
+**What it looks like:**
+```
+Don't use the --force flag.
+Don't use the deprecated X API.
+Don't install global npm packages.
+```
+
+**Why it fails:** When Claude concludes the forbidden path is the only viable one, it will either violate the constraint silently, waste turns thrashing, or halt on a task you expected to succeed. Negative constraints without an escape hatch are a design failure in the prompt.
+
+**Correction:** Pair every "don't" with a "do instead." `Don't use --force; if history diverged, stop and surface the conflict so I can resolve it manually.` The agent now has a valid next step when the forbidden one is tempting.
+
+Source: https://blog.sshh.io/p/how-i-use-every-claude-code-feature
+
+---
+
+### 1.6 Treating Opus 4.7 Like 4.6 (Vague Hints Instead of Explicit Spec)
+**What it looks like:** Reusing 4.6-era prompts that rely on the model to "figure out the tone / format / audience" from a one-liner like `write a summary`.
+
+**Why it fails:** Opus 4.7 is more literal about following spec and less forgiving of ambiguity than 4.6 was. Underspecified prompts produce flatter, more generic output than the same model would have given you with a slightly sharper brief.
+
+**Correction:** Name the tone, structure, audience, and hard constraints explicitly. `Write a 150-word internal summary for engineering leads. Neutral tone, bullet list of decisions, no recap of the problem.` Treat the upgrade as a reason to tighten prompts, not loosen them.
+
+Source: https://www.productcompass.pm/p/claude-opus-4-7-guide
+
+---
+
 ## Level 2 — Collaborator Anti-Patterns
 
 ### 2.1 Skipping Plan Mode for Non-Trivial Tasks
@@ -148,6 +175,37 @@ Or use `Read` with `offset` and `limit` if you know roughly where the function i
 
 ---
 
+### 3.6 @-Mentioning Full Documentation Files
+**What it looks like:** CLAUDE.md (or a prompt) contains `See @docs/api-reference.md` or `@ARCHITECTURE.md` for a multi-hundred-line reference doc that Claude pulls in wholesale every session.
+
+**Why it fails:** @-mentions inline the whole file into context whether or not it's needed. A 1,500-line API reference burns tokens on every turn of every session, even for tasks that never touch that API.
+
+**Correction:** Instruct *when* and *why* to read the doc, not to read it upfront. `For Stripe webhook errors, read docs/stripe-webhooks.md. For auth token flow, read docs/auth.md.` The agent pulls the doc on demand only for the matching scenario.
+
+Source: https://blog.sshh.io/p/how-i-use-every-claude-code-feature
+
+---
+
+### 3.7 Putting Must-Always-Happen Rules in CLAUDE.md Instead of Hooks
+**What it looks like:** CLAUDE.md says `ALWAYS run pnpm lint before committing` or `NEVER edit generated files`, and you rely on Claude to remember across long sessions.
+
+**Why it fails:** Community calibration puts CLAUDE.md compliance around ~80% — good, but not deterministic. Hooks are 100%: the harness executes them, not Claude. Anything that *must* happen every time (linters, formatters, compile checks, protected-file guards) belongs in a hook, not an instruction.
+
+**Correction:** For advisory preferences (style, tone, "prefer X over Y"): CLAUDE.md is fine. For invariants with real consequences if skipped: put them in `.claude/settings.json` as a `PreToolUse` or `PostToolUse` hook. See the `update-config` and `hookify` skills.
+
+Source: https://www.pixelmojo.io/blogs/claude-code-hooks-production-quality-ci-cd-patterns
+
+---
+
+### 3.8 Fix-Forward on a Degraded Session Instead of Restart
+**What it looks like:** Claude has been thrashing for 30 minutes, context is polluted with failed attempts and wrong turns, and you keep sending "no, try again, but this time..." instead of clearing and starting fresh with what you've learned.
+
+**Why it fails:** A degraded session is a sunk cost. Every further turn inherits the confused context, and Claude's next attempt is anchored to prior mistakes. You're paying more tokens per turn for worse output than a clean restart would give you.
+
+**Correction:** When you notice thrashing, stop. Write down what you learned (the real constraint, the dead ends, the correct approach). `/clear` or start a new session. Paste the learnings as context. You'll usually reach the fix faster than fix-forward would.
+
+---
+
 ## Level 4 — Tool User Anti-Patterns
 
 ### 4.1 The Kid in a Candy Store
@@ -224,6 +282,26 @@ Or use `Read` with `offset` and `limit` if you know roughly where the function i
 
 ---
 
+### 5.5 Building a Large Custom Slash-Command Library
+**What it looks like:** `.claude/commands/` has 40+ custom slash commands — `/fix-lint`, `/commit-conventional`, `/run-tests-and-lint`, `/update-deps-safe`, and so on — each one a short prompt that the agent could have produced from a plain-English request.
+
+**Why it fails:** It signals a tooling-design failure: you've reinvented muscle memory from a pre-agent workflow instead of trusting the agent to handle phrasing. Each command adds cognitive load (which one today?), drifts out of date, and splinters team conventions. A good agent interprets "run the tests and fix lint" fine without a dedicated command.
+
+**Correction:** Keep custom slash commands reserved for genuinely non-obvious workflows (multi-step orchestration, project-specific conventions the agent can't infer, or commands that embed non-trivial context/flags). For everything else, write it in CLAUDE.md once and let natural prompts drive it.
+
+Source: https://blog.sshh.io/p/how-i-use-every-claude-code-feature
+
+---
+
+### 5.6 Trusting `allowed-tools:` Frontmatter as a Permission Gate
+**What it looks like:** A skill's frontmatter declares `allowed-tools: [Read, Grep]` and you assume the harness will block Write/Edit/Bash if the skill tries them.
+
+**Why it fails:** `allowed-tools:` in skill frontmatter is declarative only — it documents intent, it does not enforce permissions. The actual gate lives in `.claude/settings.json` permissions or `PreToolUse` hooks. See issue #18837. Treating the frontmatter as a sandbox means the skill can silently exceed its stated scope.
+
+**Correction:** Use `allowed-tools:` as documentation. For real enforcement, restrict the skill's toolset at the settings layer (permissions deny-list) or via a `PreToolUse` hook that rejects disallowed tools for that skill.
+
+---
+
 ## Level 6 — Manager Anti-Patterns
 
 ### 6.1 Micro-Managing Subagents
@@ -259,3 +337,12 @@ Or use `Read` with `offset` and `limit` if you know roughly where the function i
 **Why it fails:** The coordination overhead becomes the bottleneck. You spend more time tracking state than doing work.
 
 **Correction:** Maintain a lightweight task file (or CLAUDE.md entry) for each active workstream: what it's doing, what branch, what the current status is, and what the next action is.
+
+---
+
+### 6.5 Subagents with Wide-Open Tool Allowlists
+**What it looks like:** Every subagent definition has `tools: *` (or the equivalent default inheriting the parent's full toolset), including WebFetch, Bash, Edit, and every MCP server currently loaded.
+
+**Why it fails:** Each tool's schema is loaded into the subagent's system prompt. A subagent inheriting 40+ tools burns thousands of tokens before the task prompt even starts, slows first-token latency, and gives the subagent access to MCPs it was never meant to touch (a soft privilege-escalation path). You also pay this cost per subagent, per invocation.
+
+**Correction:** Set an explicit minimal allowlist in the subagent definition. A "find-files" subagent needs `tools: [Grep, Glob, Read]` — not the world. A "run-tests" subagent needs `Bash` scoped to the test command. Audit the tool list the same way you'd audit IAM permissions: default-deny, allow by need.

@@ -10,6 +10,8 @@ Model Context Protocol servers extend Claude Code with new tools. They run as se
 
 **Important:** Every active MCP consumes context tokens just by being available, even if you never call its tools. This is the primary anti-pattern to avoid. See the anti-patterns section below.
 
+**MCP Tool Search (lazy loading).** Recent Claude Code versions ship a built-in MCP Tool Search that defers loading of tool schemas until they are needed — Anthropic reports up to ~95% reduction in MCP-related context usage. This means the old hard rule of "keep MCPs off unless used today" has softened: with Tool Search enabled, you can afford a broader set of configured servers without paying the full per-session token cost. The discipline around avoiding redundant MCPs (see anti-patterns) still applies — cheaper is not free.
+
 ---
 
 ## Catalog
@@ -170,6 +172,20 @@ Model Context Protocol servers extend Claude Code with new tools. They run as se
 
 ---
 
+## Community "core must-haves"
+
+Beyond the servers detailed above, community consensus in 2026 consistently lists the following as high-value MCPs. Enable them on demand rather than globally.
+
+- **Filesystem MCP** — sandboxed read/write access to specified directories. Useful when you want Claude to operate outside the current project root in a controlled way. Prefer the built-in file tools for normal in-repo work.
+- **PostgreSQL MCP** — direct SQL execution against a configured database. Valuable for schema inspection, query shaping, and data debugging. Keep credentials tight; prefer read-only roles.
+- **Sequential Thinking MCP** — exposes an explicit chain-of-thought scratchpad tool for long multi-step reasoning. Helpful for planning-heavy tasks where Claude benefits from structured intermediate state.
+- **Playwright / Puppeteer MCP** — browser automation (navigation, DOM inspection, screenshots). Use for end-to-end testing, scraping, or reproducing UI bugs. `claude-in-chrome` is the newer in-browser alternative on some setups.
+- **Memory MCP (knowledge graph)** — persistent, structured memory across sessions. Useful for long-running projects where Claude should recall entities, decisions, or relationships over time.
+
+The two most-recommended additions beyond the obvious (GitHub, Filesystem) are **Context7** (already above) and **Sequential Thinking**.
+
+---
+
 ## Anti-Patterns
 
 ### The "Kid in a Candy Store"
@@ -183,12 +199,25 @@ Using an MCP when a simpler tool works just as well. Example: using the GitHub M
 **Rule:** Reach for an MCP when it provides access to something Claude otherwise cannot get — not when it provides a slower path to something you can already do.
 
 ### Forgetting MCPs Are Always On
-Configuring MCPs globally and forgetting they're active in every session. Each active MCP's tool list appears in the system prompt, consuming tokens even when unused.
+Configuring MCPs globally and forgetting they're active in every session. With MCP Tool Search, the cost of an idle MCP is now much smaller — but not zero, and servers still connect at startup.
 
-**Rule:** Use project-level MCP configuration to enable MCPs only where they're relevant. Review your global MCP list quarterly.
+**Rule:** Use project-level MCP configuration to enable MCPs only where they're relevant. Review your global MCP list quarterly. Rely on Tool Search to absorb the marginal case, not to excuse a bloated global list.
+
+### Over-persisting MCP tool output
+Some MCP servers return huge result payloads (database dumps, large documents). By default, Claude Code truncates very large tool results; some servers legitimately need more.
+
+**Rule:** If a data-heavy MCP is being unhelpfully truncated, check whether the server sets `_meta["anthropic/maxResultSizeChars"]` (it can request up to ~500K). Do not try to bypass this limit client-side — a security fix explicitly closed that door.
 
 ---
 
 ## Configuration Notes
 
 MCPs are configured in `~/.claude/.mcp.json` (global) or `.mcp.json` in the project root (project-local). Project-local settings override globals for that project. Prefer project-local configuration to keep MCP scope narrow.
+
+**Startup behavior.** Recent Claude Code versions connect to local and `claude.ai` MCP servers concurrently, so total startup time is roughly bounded by the slowest server rather than the sum. `resources/templates/list` is deferred until the first `@`-mention, reducing idle chatter.
+
+**Headless / `-p` mode.** Set `MCP_CONNECTION_NONBLOCKING=true` to keep `claude -p` from blocking on MCP connections; servers are given a ~5s connection window and then the run proceeds without them. Useful in CI and scripted pipelines where an unreachable MCP shouldn't fail the whole invocation.
+
+**Result size override.** MCP servers may declare `_meta["anthropic/maxResultSizeChars"]` on a tool result to persist larger payloads (up to ~500K) when they genuinely need to. Server-side declaration only — this is not a client-side knob.
+
+**Enterprise / managed settings.** Organizations can constrain plugin marketplaces via managed settings: `blockedMarketplaces` and `strictKnownMarketplaces` are enforced on install, update, refresh, and autoupdate. The official Anthropic marketplace (`claude-plugins-official`) is available by default; third-party marketplaces (e.g. community bundles packaged via `ccpi`-style CLIs) should only be added after a review of what they ship. Treat third-party MCP servers the same way you treat any other untrusted code executing in your environment.
