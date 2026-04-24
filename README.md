@@ -163,8 +163,10 @@ every `/advisor` invocation.
 **Full update** (`/advisor update`) — dispatches parallel subagents:
 1. One research subagent searches the web (Claude Code releases, community tips,
    new MCPs) — loads `WebSearch`/`WebFetch` via `ToolSearch`
-2. Six per-file subagents analyze the research and rewrite their target
+2. Five per-file subagents analyze the research and rewrite their target
    reference file independently — isolated failures, parallel execution
+   (`skills-catalog.md` is refreshed by the local scan; `modes-and-patterns.md`
+   is the core framework, edited manually)
 3. Results are consolidated into [`CHANGELOG.md`](CHANGELOG.md)
 
 ### Setup weekly auto-update
